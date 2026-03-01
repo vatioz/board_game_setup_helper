@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Save, Loader2, FolderOpen, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import type { Step, SessionData } from "../types";
 import * as api from "../services/api";
 
@@ -101,41 +102,78 @@ export default function SessionManager({
     }
   };
 
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
-    <div className="session-manager">
+    <div className="bg-white rounded-lg shadow-soft p-4">
       {hasSteps && (
-        <div className="session-save">
+        <div className="flex gap-2 mb-3">
           <input
             type="text"
             placeholder="Game name…"
             value={sessionName}
             onChange={(e) => onSessionNameChange(e.target.value)}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
           />
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : sessionId ? "Update" : "Save"}
+          <button 
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-soft" 
+            onClick={handleSave} 
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                {sessionId ? "Update" : "Save"}
+              </>
+            )}
           </button>
         </div>
       )}
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
 
       {sessions.length > 0 && (
-        <details className="session-list-details">
-          <summary>Saved sessions ({sessions.length})</summary>
-          <ul className="session-list">
-            {sessions.map((s) => (
-              <li key={s.id}>
-                <span className="session-name">{s.name}</span>
-                <button className="btn-icon" title="Load" onClick={() => handleLoad(s.id)}>
-                  📂
-                </button>
-                <button className="btn-icon" title="Delete" onClick={() => handleDelete(s.id)}>
-                  🗑️
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
+        <div className="mt-3 pt-3 border-t border-slate-200">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors w-full"
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+            Saved sessions ({sessions.length})
+          </button>
+          {isExpanded && (
+            <ul className="mt-2 space-y-1 animate-slide-in">
+              {sessions.map((s) => (
+                <li key={s.id} className="flex items-center gap-2 py-1.5 group">
+                  <span className="flex-1 text-sm text-slate-700 truncate">{s.name}</span>
+                  <button 
+                    className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-all duration-150" 
+                    title="Load" 
+                    onClick={() => handleLoad(s.id)}
+                  >
+                    <FolderOpen className="w-4 h-4" />
+                  </button>
+                  <button 
+                    className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-all duration-150" 
+                    title="Delete" 
+                    onClick={() => handleDelete(s.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

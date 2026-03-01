@@ -1,3 +1,4 @@
+import { List } from "lucide-react";
 import type { Step } from "../types";
 import StepItem from "./StepItem";
 
@@ -17,9 +18,14 @@ export default function StepsList({
   onToggleKey,
 }: Props) {
   return (
-    <div className="steps-column">
-      <h2>{title} ({steps.length})</h2>
-      <ul className="steps-list">
+    <div className="bg-white rounded-xl shadow-soft p-5 flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-4">
+        <List className="w-5 h-5 text-slate-600" />
+        <h2 className="text-lg font-semibold text-slate-800">
+          {title} <span className="text-slate-500 font-normal">({steps.length})</span>
+        </h2>
+      </div>
+      <div className="flex flex-col gap-3 overflow-y-auto flex-1">
         {steps.map((step) => (
           <StepItem
             key={step.id}
@@ -29,7 +35,7 @@ export default function StepsList({
             onToggleKey={onToggleKey}
           />
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

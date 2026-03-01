@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Dices, Printer } from "lucide-react";
 import type { Step } from "./types";
 import { extractSteps } from "./services/api";
 import FileUpload from "./components/FileUpload";
@@ -118,41 +119,53 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>🎲 Board Game Setup Helper</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-12">
+      <header className="text-center py-6 mb-6">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <Dices className="w-8 h-8 text-primary-600" />
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+            Board Game Setup Helper
+          </h1>
+        </div>
+        <p className="text-slate-600 text-sm mt-2">Extract and organize setup steps from rulebook PDFs</p>
       </header>
 
-      <section className="session-section">
-        <SessionManager
-          sessionId={sessionId}
-          sessionName={sessionName}
-          onSessionNameChange={setSessionName}
-          allSteps={allSteps}
-          keySteps={keySteps}
-          rawExtraction={rawExtraction}
-          rawLlmAllSteps={rawLlmAll}
-          rawLlmKeySteps={rawLlmKey}
-          onSessionSaved={(id) => setSessionId(id)}
-          onSessionLoaded={handleSessionLoaded}
-          hasSteps={hasSteps}
-        />
+      <div className="mb-6 flex flex-wrap items-start gap-4">
+        <div className="flex-1 min-w-[280px]">
+          <SessionManager
+            sessionId={sessionId}
+            sessionName={sessionName}
+            onSessionNameChange={setSessionName}
+            allSteps={allSteps}
+            keySteps={keySteps}
+            rawExtraction={rawExtraction}
+            rawLlmAllSteps={rawLlmAll}
+            rawLlmKeySteps={rawLlmKey}
+            onSessionSaved={(id) => setSessionId(id)}
+            onSessionLoaded={handleSessionLoaded}
+            hasSteps={hasSteps}
+          />
+        </div>
         {hasSteps && (
-          <button className="btn btn-print" onClick={handlePrint}>
-            🖨️ Print Key Steps
+          <button 
+            className="no-print inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg shadow-soft hover:shadow-soft-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105" 
+            onClick={handlePrint}
+          >
+            <Printer className="w-4 h-4" />
+            Print Key Steps
           </button>
         )}
-      </section>
+      </div>
 
-      <section className="upload-section">
+      <section className="text-center mb-8">
         <FileUpload onUpload={handleUpload} loading={loading} />
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-red-600 text-sm mt-3 font-medium">{error}</p>}
       </section>
 
       {hasSteps && (
         <>
 
-        <div className="columns">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StepsList
             title="All Steps"
             steps={allSteps}
