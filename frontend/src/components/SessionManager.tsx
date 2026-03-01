@@ -13,6 +13,7 @@ interface Props {
   rawLlmKeySteps: string;
   onSessionSaved: (id: string) => void;
   onSessionLoaded: (data: SessionData) => void;
+  hasSteps: boolean;
 }
 
 export default function SessionManager({
@@ -26,6 +27,7 @@ export default function SessionManager({
   rawLlmKeySteps,
   onSessionSaved,
   onSessionLoaded,
+  hasSteps,
 }: Props) {
   const [sessions, setSessions] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -101,17 +103,19 @@ export default function SessionManager({
 
   return (
     <div className="session-manager">
-      <div className="session-save">
-        <input
-          type="text"
-          placeholder="Game name…"
-          value={sessionName}
-          onChange={(e) => onSessionNameChange(e.target.value)}
-        />
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : sessionId ? "Update" : "Save"}
-        </button>
-      </div>
+      {hasSteps && (
+        <div className="session-save">
+          <input
+            type="text"
+            placeholder="Game name…"
+            value={sessionName}
+            onChange={(e) => onSessionNameChange(e.target.value)}
+          />
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : sessionId ? "Update" : "Save"}
+          </button>
+        </div>
+      )}
 
       {error && <p className="error">{error}</p>}
 

@@ -123,6 +123,27 @@ export default function App() {
         <h1>🎲 Board Game Setup Helper</h1>
       </header>
 
+      <section className="session-section">
+        <SessionManager
+          sessionId={sessionId}
+          sessionName={sessionName}
+          onSessionNameChange={setSessionName}
+          allSteps={allSteps}
+          keySteps={keySteps}
+          rawExtraction={rawExtraction}
+          rawLlmAllSteps={rawLlmAll}
+          rawLlmKeySteps={rawLlmKey}
+          onSessionSaved={(id) => setSessionId(id)}
+          onSessionLoaded={handleSessionLoaded}
+          hasSteps={hasSteps}
+        />
+        {hasSteps && (
+          <button className="btn btn-print" onClick={handlePrint}>
+            🖨️ Print Key Steps
+          </button>
+        )}
+      </section>
+
       <section className="upload-section">
         <FileUpload onUpload={handleUpload} loading={loading} />
         {error && <p className="error">{error}</p>}
@@ -130,48 +151,31 @@ export default function App() {
 
       {hasSteps && (
         <>
-          <section className="session-section">
-            <SessionManager
-              sessionId={sessionId}
-              sessionName={sessionName}
-              onSessionNameChange={setSessionName}
-              allSteps={allSteps}
-              keySteps={keySteps}
-              rawExtraction={rawExtraction}
-              rawLlmAllSteps={rawLlmAll}
-              rawLlmKeySteps={rawLlmKey}
-              onSessionSaved={(id) => setSessionId(id)}
-              onSessionLoaded={handleSessionLoaded}
-            />
-            <button className="btn btn-print" onClick={handlePrint}>
-              🖨️ Print Key Steps
-            </button>
-          </section>
 
-          <div className="columns">
-            <StepsList
-              title="All Steps"
-              steps={allSteps}
-              keyStepIds={new Set(keySteps.map((s) => s.id))}
-              onEdit={handleEditStep}
-              onToggleKey={handleToggleKey}
-            />
-            <KeyStepsList
-              steps={keySteps}
-              onReorder={setKeySteps}
-              onEdit={handleEditStep}
-              onRemove={(id) =>
-                setKeySteps((prev) => prev.filter((s) => s.id !== id))
-              }
-            />
-          </div>
-
-          <DiagnosticsPanel
-            rawExtraction={rawExtraction}
-            rawLlmAll={rawLlmAll}
-            rawLlmKey={rawLlmKey}
+        <div className="columns">
+          <StepsList
+            title="All Steps"
+            steps={allSteps}
+            keyStepIds={new Set(keySteps.map((s) => s.id))}
+            onEdit={handleEditStep}
+            onToggleKey={handleToggleKey}
           />
-        </>
+          <KeyStepsList
+            steps={keySteps}
+            onReorder={setKeySteps}
+            onEdit={handleEditStep}
+            onRemove={(id) =>
+              setKeySteps((prev) => prev.filter((s) => s.id !== id))
+            }
+          />
+        </div>
+
+        <DiagnosticsPanel
+          rawExtraction={rawExtraction}
+          rawLlmAll={rawLlmAll}
+          rawLlmKey={rawLlmKey}
+        />
+      </>
       )}
     </div>
   );
