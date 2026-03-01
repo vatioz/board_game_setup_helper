@@ -30,16 +30,25 @@ def _get_client() -> AzureOpenAI:
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
 _SYSTEM_EXTRACT = """\
-You are an expert board-game analyst. Given the raw text of a board-game rulebook, \
-extract every discrete setup instruction in chronological order.
+You are an expert board-game analyst. Given the raw text of one or more \
+board-game rulebooks (base game and/or expansions), extract every discrete \
+setup instruction in chronological order.
+
+The text may contain sections from multiple documents, separated by markers \
+like "=== [Document Name] ===". Use these markers to determine the "source" \
+of each step — i.e. which document the step came from.
 
 Rules:
 - Include ONLY setup instructions (what to do before the first turn).
 - Exclude gameplay rules, victory conditions, flavor text, and component lists \
   that are not actionable setup steps.
 - Each step must be a short, self-contained instruction.
+- If an expansion modifies or overrides a base game step, include only the \
+  expansion's version and note the source.
+- Order steps logically: base-game setup first, then expansion additions.
 
-Respond with a JSON array of objects: [{"id": "<uuid>", "text": "<instruction>"}]
+Respond with a JSON array of objects: \
+[{"id": "<uuid>", "text": "<instruction>", "source": "<document name>"}]
 Return ONLY the JSON array — no markdown fences, no commentary.
 """
 
@@ -56,7 +65,7 @@ A step is NOT key if it is intuitive common sense (e.g., "unfold the board", \
 "each player picks a color").
 
 Respond with a JSON array of objects: \
-[{"id": "<same-id>", "text": "<same-text>", "isKey": true/false}]
+[{"id": "<same-id>", "text": "<same-text>", "source": "<same-source>", "isKey": true/false}]
 Return ONLY the JSON array — no markdown fences, no commentary.
 """
 
@@ -85,21 +94,42 @@ def _parse_json_array(raw: str) -> list[dict]:
     return json.loads(text)
 
 
+def _build_combined_text(extractions: dict[str, str]) -> str:
+    """Concatenate per-document texts with labelled boundary markers."""
+    sections: list[str] = []
+    for label, text in extractions.items():
+        sections.append(f"=== [{label}] ===\n{text}")
+    return "\n\n".join(sections)
+
+
 # ── Public API ───────────────────────────────────────────────────────────────
 
-def extract_all_steps(raw_text: str) -> tuple[list[Step], str]:
-    """Return (list_of_steps, raw_llm_response) from rulebook text."""
-    logger.info("LLM: extracting all steps (%d chars of input)", len(raw_text))
-    raw = _call_llm(_SYSTEM_EXTRACT, raw_text)
+def extract_all_steps(raw_text: str | dict[str, str]) -> tuple[list[Step], str]:
+    """Return (list_of_steps, raw_llm_response) from rulebook text.
+
+    *raw_text* can be a plain string (single PDF, backward compat) or a
+    ``{label: text}`` dict for multi-PDF extraction.
+    """
+    if isinstance(raw_text, dict):
+        combined = _build_combined_text(raw_text)
+    else:
+        combined = raw_text
+
+    logger.info("LLM: extracting all steps (%d chars of input)", len(combined))
+    raw = _call_llm(_SYSTEM_EXTRACT, combined)
     try:
         items = _parse_json_array(raw)
     except (json.JSONDecodeError, ValueError):
         logger.warning("LLM returned malformed JSON – retrying once")
-        raw = _call_llm(_SYSTEM_EXTRACT, raw_text)
+        raw = _call_llm(_SYSTEM_EXTRACT, combined)
         items = _parse_json_array(raw)  # let it raise on second failure
 
     steps = [
-        Step(id=item.get("id", str(uuid.uuid4())), text=item["text"])
+        Step(
+            id=item.get("id", str(uuid.uuid4())),
+            text=item["text"],
+            source=item.get("source", ""),
+        )
         for item in items
     ]
     logger.info("LLM: extracted %d steps", len(steps))
@@ -119,7 +149,7 @@ def classify_key_steps(all_steps: list[Step]) -> tuple[list[Step], str]:
         items = _parse_json_array(raw)
 
     key_steps = [
-        Step(id=item["id"], text=item["text"])
+        Step(id=item["id"], text=item["text"], source=item.get("source", ""))
         for item in items
         if item.get("isKey", False)
     ]

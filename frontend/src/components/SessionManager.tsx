@@ -10,6 +10,7 @@ interface Props {
   allSteps: Step[];
   keySteps: Step[];
   rawExtraction: string;
+  rawExtractions?: Record<string, string>;
   rawLlmAllSteps: string;
   rawLlmKeySteps: string;
   onSessionSaved: (id: string) => void;
@@ -24,6 +25,7 @@ export default function SessionManager({
   allSteps,
   keySteps,
   rawExtraction,
+  rawExtractions,
   rawLlmAllSteps,
   rawLlmKeySteps,
   onSessionSaved,
@@ -62,6 +64,7 @@ export default function SessionManager({
         allSteps,
         keySteps,
         rawExtraction,
+        rawExtractions,
         rawLlmAllSteps,
         rawLlmKeySteps,
       };

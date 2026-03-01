@@ -17,6 +17,7 @@ export default function App() {
 
   // diagnostics
   const [rawExtraction, setRawExtraction] = useState("");
+  const [rawExtractions, setRawExtractions] = useState<Record<string, string>>({});
   const [rawLlmAll, setRawLlmAll] = useState("");
   const [rawLlmKey, setRawLlmKey] = useState("");
 
@@ -25,14 +26,15 @@ export default function App() {
   const [sessionName, setSessionName] = useState("");
 
   // ── Upload handler ────────────────────────────────────────────────────
-  const handleUpload = useCallback(async (file: File) => {
+  const handleUpload = useCallback(async (files: File[], labels: string[]) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await extractSteps(file);
+      const result = await extractSteps(files, labels);
       setAllSteps(result.allSteps);
       setKeySteps(result.keySteps);
       setRawExtraction(result.rawExtraction);
+      setRawExtractions(result.rawExtractions ?? {});
       setRawLlmAll(result.rawLlmAllSteps);
       setRawLlmKey(result.rawLlmKeySteps);
       setSessionId(null);
@@ -101,6 +103,7 @@ export default function App() {
       allSteps: Step[];
       keySteps: Step[];
       rawExtraction: string;
+      rawExtractions?: Record<string, string>;
       rawLlmAllSteps: string;
       rawLlmKeySteps: string;
     }) => {
@@ -109,6 +112,14 @@ export default function App() {
       setAllSteps(data.allSteps);
       setKeySteps(data.keySteps);
       setRawExtraction(data.rawExtraction);
+      // Backward compat: old sessions have only rawExtraction (flat string)
+      setRawExtractions(
+        data.rawExtractions && Object.keys(data.rawExtractions).length > 0
+          ? data.rawExtractions
+          : data.rawExtraction
+            ? { Game: data.rawExtraction }
+            : {}
+      );
       setRawLlmAll(data.rawLlmAllSteps);
       setRawLlmKey(data.rawLlmKeySteps);
     },
@@ -139,6 +150,7 @@ export default function App() {
             allSteps={allSteps}
             keySteps={keySteps}
             rawExtraction={rawExtraction}
+            rawExtractions={rawExtractions}
             rawLlmAllSteps={rawLlmAll}
             rawLlmKeySteps={rawLlmKey}
             onSessionSaved={(id) => setSessionId(id)}
@@ -185,6 +197,7 @@ export default function App() {
 
         <DiagnosticsPanel
           rawExtraction={rawExtraction}
+          rawExtractions={rawExtractions}
           rawLlmAll={rawLlmAll}
           rawLlmKey={rawLlmKey}
         />

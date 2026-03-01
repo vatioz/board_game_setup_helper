@@ -5,6 +5,7 @@ Calls the prebuilt-read model to extract text (with layout) from an uploaded PDF
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from azure.ai.documentintelligence import DocumentIntelligenceClient
@@ -48,3 +49,16 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     full_text = "\n\n".join(pages_text)
     logger.info("Extraction complete – %d characters across %d pages", len(full_text), len(result.pages))
     return full_text
+
+
+async def extract_text_from_multiple_pdfs(
+    files: list[tuple[str, bytes]],
+) -> dict[str, str]:
+    """Extract text from multiple PDFs concurrently.
+
+    *files* is a list of ``(label, pdf_bytes)`` tuples.
+    Returns ``{label: extracted_text}`` preserving the input order.
+    """
+    tasks = [extract_text_from_pdf(pdf_bytes) for _label, pdf_bytes in files]
+    results = await asyncio.gather(*tasks)
+    return {label: text for (label, _bytes), text in zip(files, results)}

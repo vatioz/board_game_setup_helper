@@ -19,9 +19,13 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 // ── Extract ─────────────────────────────────────────────────────────────────
 
-export async function extractSteps(file: File): Promise<ExtractResponse> {
+export async function extractSteps(
+  files: File[],
+  labels: string[]
+): Promise<ExtractResponse> {
   const form = new FormData();
-  form.append("file", file);
+  files.forEach((f) => form.append("files", f));
+  form.append("labels", labels.join(","));
   const res = await fetch(`${BASE}/extract`, { method: "POST", body: form });
   return handleResponse<ExtractResponse>(res);
 }

@@ -3,12 +3,14 @@
 export interface Step {
   id: string;
   text: string;
+  source?: string;  // label of the originating PDF (e.g. "Base Game")
 }
 
 export interface ExtractResponse {
   allSteps: Step[];
   keySteps: Step[];
-  rawExtraction: string;
+  rawExtraction: string;                        // deprecated flat string
+  rawExtractions?: Record<string, string>;       // label → extracted text per PDF
   rawLlmAllSteps: string;
   rawLlmKeySteps: string;
 }
@@ -23,7 +25,8 @@ export interface SessionData {
   name: string;
   allSteps: Step[];
   keySteps: Step[];
-  rawExtraction: string;
+  rawExtraction: string;                        // deprecated flat string
+  rawExtractions?: Record<string, string>;       // label → extracted text per PDF
   rawLlmAllSteps: string;
   rawLlmKeySteps: string;
 }
@@ -32,7 +35,8 @@ export interface SaveSessionRequest {
   name: string;
   allSteps: Step[];
   keySteps: Step[];
-  rawExtraction: string;
+  rawExtraction: string;                        // deprecated flat string
+  rawExtractions?: Record<string, string>;       // label → extracted text per PDF
   rawLlmAllSteps: string;
   rawLlmKeySteps: string;
 }

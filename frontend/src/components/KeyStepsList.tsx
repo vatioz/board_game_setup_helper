@@ -18,6 +18,25 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Step } from "../types";
 
+// Deterministic colour palette for source badges (shared with StepItem)
+const SOURCE_COLORS = [
+  "bg-blue-100 text-blue-700 ring-blue-300",
+  "bg-purple-100 text-purple-700 ring-purple-300",
+  "bg-teal-100 text-teal-700 ring-teal-300",
+  "bg-rose-100 text-rose-700 ring-rose-300",
+  "bg-lime-100 text-lime-700 ring-lime-300",
+  "bg-sky-100 text-sky-700 ring-sky-300",
+];
+const _colorCache = new Map<string, string>();
+let _colorIdx = 0;
+function sourceColor(source: string): string {
+  if (!_colorCache.has(source)) {
+    _colorCache.set(source, SOURCE_COLORS[_colorIdx % SOURCE_COLORS.length]);
+    _colorIdx++;
+  }
+  return _colorCache.get(source)!;
+}
+
 // ── Sortable row ────────────────────────────────────────────────────────────
 
 function SortableStep({
@@ -86,6 +105,15 @@ function SortableStep({
           title="Double-click to edit"
         >
           {step.text}
+        </span>
+      )}
+
+      {step.source && (
+        <span
+          className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ring-1 ${sourceColor(step.source)}`}
+          title={`Source: ${step.source}`}
+        >
+          {step.source}
         </span>
       )}
 

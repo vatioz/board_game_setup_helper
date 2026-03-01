@@ -10,12 +10,14 @@ from pydantic import BaseModel, Field
 class Step(BaseModel):
     id: str
     text: str
+    source: str = ""  # label of the originating PDF (e.g. "Base Game")
 
 
 class ClassifiedStep(BaseModel):
     id: str
     text: str
     isKey: bool = Field(alias="isKey")
+    source: str = ""
 
     model_config = {"populate_by_name": True}
 
@@ -25,7 +27,8 @@ class ClassifiedStep(BaseModel):
 class ExtractResponse(BaseModel):
     allSteps: list[Step]
     keySteps: list[Step]
-    rawExtraction: str = ""
+    rawExtraction: str = ""               # deprecated – kept for backward compat
+    rawExtractions: dict[str, str] = {}    # label → extracted text per PDF
     rawLlmAllSteps: str = ""
     rawLlmKeySteps: str = ""
 
@@ -42,7 +45,8 @@ class SessionData(BaseModel):
     name: str
     allSteps: list[Step]
     keySteps: list[Step]
-    rawExtraction: str = ""
+    rawExtraction: str = ""               # deprecated – kept for backward compat
+    rawExtractions: dict[str, str] = {}    # label → extracted text per PDF
     rawLlmAllSteps: str = ""
     rawLlmKeySteps: str = ""
 
@@ -51,6 +55,7 @@ class SaveSessionRequest(BaseModel):
     name: str
     allSteps: list[Step]
     keySteps: list[Step]
-    rawExtraction: str = ""
+    rawExtraction: str = ""               # deprecated – kept for backward compat
+    rawExtractions: dict[str, str] = {}    # label → extracted text per PDF
     rawLlmAllSteps: str = ""
     rawLlmKeySteps: str = ""
