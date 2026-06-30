@@ -22,6 +22,16 @@ class ClassifiedStep(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class FeatureStatus(BaseModel):
+    available: bool
+    reason: str = ""
+
+
+class AppStatus(BaseModel):
+    extraction: FeatureStatus
+    sessions: FeatureStatus
+
+
 # ── Extraction request / response ────────────────────────────────────────────
 
 class ExtractResponse(BaseModel):

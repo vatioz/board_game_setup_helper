@@ -8,7 +8,7 @@ import uuid
 
 from openai import AzureOpenAI
 
-from app.config import settings
+from app.config import get_extraction_status, settings
 from app.models import Step
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,9 @@ _client: AzureOpenAI | None = None
 def _get_client() -> AzureOpenAI:
     global _client
     if _client is None:
+        status = get_extraction_status()
+        if not status["available"]:
+            raise RuntimeError(str(status["reason"]))
         _client = AzureOpenAI(
             azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
             api_key=settings.AZURE_OPENAI_API_KEY,

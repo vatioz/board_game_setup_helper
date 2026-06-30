@@ -10,10 +10,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from app.config import settings
+from app.config import get_app_status, settings
+from app.models import AppStatus
 from app.routers import extract, sessions
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -36,6 +37,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/status", response_model=AppStatus)
+async def get_status():
+    """Return app feature availability for degraded-mode UI decisions."""
+    return get_app_status()
+
 
 # ── API routes ───────────────────────────────────────────────────────────────
 app.include_router(extract.router, prefix="/api")

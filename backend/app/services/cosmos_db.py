@@ -7,7 +7,7 @@ from typing import Any
 
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
-from app.config import settings
+from app.config import get_sessions_status, settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,9 @@ def _get_container():
     """Lazily initialise the Cosmos DB container reference (creates DB/container if missing)."""
     global _container
     if _container is None:
+        status = get_sessions_status()
+        if not status["available"]:
+            raise RuntimeError(str(status["reason"]))
         client = CosmosClient(settings.COSMOSDB_ENDPOINT, credential=settings.COSMOSDB_KEY)
         database = client.create_database_if_not_exists(id=settings.COSMOSDB_DATABASE)
         _container = database.create_container_if_not_exists(

@@ -1,10 +1,11 @@
 /** Thin API client for the FastAPI backend. */
 
 import type {
+  AppStatus,
   ExtractResponse,
-  SessionSummary,
-  SessionData,
   SaveSessionRequest,
+  SessionData,
+  SessionSummary,
 } from "../types";
 
 const BASE = "/api";
@@ -15,6 +16,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
     throw new Error(body.detail ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+export async function getAppStatus(): Promise<AppStatus> {
+  const res = await fetch(`${BASE}/status`);
+  return handleResponse<AppStatus>(res);
 }
 
 // ── Extract ─────────────────────────────────────────────────────────────────
