@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { Upload, Loader2, X, FileText } from "lucide-react";
+import { FileText, Loader2, Upload, X } from "lucide-react";
 
 interface FileEntry {
   file: File;
@@ -9,11 +9,19 @@ interface FileEntry {
 interface Props {
   onUpload: (files: File[], labels: string[]) => void;
   loading: boolean;
+  extractionAvailable?: boolean;
+  extractionReason?: string | null;
 }
 
-export default function FileUpload({ onUpload, loading }: Props) {
+export default function FileUpload({
+  onUpload,
+  loading,
+  extractionAvailable = true,
+  extractionReason = null,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<FileEntry[]>([]);
+  const disabled = loading || !extractionAvailable;
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,13 +51,13 @@ export default function FileUpload({ onUpload, loading }: Props) {
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (entries.length === 0) return;
+    if (entries.length === 0 || !extractionAvailable) return;
     onUpload(
       entries.map((e) => e.file),
       entries.map((e) => e.label)
     );
     setEntries([]);
-  }, [entries, onUpload]);
+  }, [entries, extractionAvailable, onUpload]);
 
   return (
     <div className="inline-flex flex-col items-center gap-3">
@@ -59,7 +67,7 @@ export default function FileUpload({ onUpload, loading }: Props) {
         accept="application/pdf"
         multiple
         onChange={handleChange}
-        disabled={loading}
+        disabled={disabled}
         hidden
       />
 
@@ -67,7 +75,7 @@ export default function FileUpload({ onUpload, loading }: Props) {
         <button
           className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-medium rounded-lg shadow-soft hover:shadow-soft-lg hover:from-primary-700 hover:to-primary-800 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-soft transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
           onClick={() => inputRef.current?.click()}
-          disabled={loading}
+          disabled={disabled}
         >
           {loading ? (
             <>
@@ -84,7 +92,7 @@ export default function FileUpload({ onUpload, loading }: Props) {
           )}
         </button>
 
-        {entries.length > 0 && !loading && (
+        {entries.length > 0 && !disabled && (
           <button
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg shadow-soft hover:shadow-soft-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105"
             onClick={handleSubmit}
@@ -94,6 +102,12 @@ export default function FileUpload({ onUpload, loading }: Props) {
           </button>
         )}
       </div>
+
+      {!extractionAvailable && (
+        <p className="max-w-2xl text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-left">
+          {extractionReason ?? "PDF extraction is unavailable until the Azure integrations are configured."}
+        </p>
+      )}
 
       {entries.length > 0 && (
         <ul className="w-full max-w-lg space-y-2 mt-2">
@@ -109,12 +123,12 @@ export default function FileUpload({ onUpload, loading }: Props) {
                 onChange={(e) => updateLabel(idx, e.target.value)}
                 className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent"
                 placeholder="Label (e.g. Base Game)"
-                disabled={loading}
+                disabled={disabled}
               />
               <span className="text-xs text-slate-400 truncate max-w-[120px]" title={entry.file.name}>
                 {entry.file.name}
               </span>
-              {!loading && (
+              {!disabled && (
                 <button
                   className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-all"
                   onClick={() => removeEntry(idx)}

@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Dices, Printer } from "lucide-react";
-import type { Step } from "./types";
-import { extractSteps } from "./services/api";
+import type { AppStatus, Step } from "./types";
+import { extractSteps, getAppStatus } from "./services/api";
 import FileUpload from "./components/FileUpload";
 import StepsList from "./components/StepsList";
 import KeyStepsList from "./components/KeyStepsList";
@@ -14,6 +14,8 @@ export default function App() {
   const [keySteps, setKeySteps] = useState<Step[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appStatus, setAppStatus] = useState<AppStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // diagnostics
   const [rawExtraction, setRawExtraction] = useState("");
@@ -24,6 +26,27 @@ export default function App() {
   // current session id (set after save / load)
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionName, setSessionName] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAppStatus()
+      .then((status) => {
+        if (!cancelled) {
+          setAppStatus(status);
+          setStatusError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setStatusError(err instanceof Error ? err.message : "Could not load app status.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ── Upload handler ────────────────────────────────────────────────────
   const handleUpload = useCallback(async (files: File[], labels: string[]) => {
@@ -127,6 +150,9 @@ export default function App() {
   );
 
   const hasSteps = allSteps.length > 0;
+  const extractionAvailable = appStatus?.extraction.available ?? true;
+  const storageMode = appStatus?.sessions.available === false ? "local" : "remote";
+  const showDegradedBanner = appStatus !== null && (!appStatus.extraction.available || !appStatus.sessions.available);
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -140,6 +166,24 @@ export default function App() {
         </div>
         <p className="text-slate-600 text-sm mt-2">Extract and organize setup steps from rulebook PDFs</p>
       </header>
+
+      {showDegradedBanner && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-semibold">Running in limited mode</p>
+          {!appStatus?.extraction.available && (
+            <p className="mt-1">PDF extraction is disabled until the Azure extraction services are configured.</p>
+          )}
+          {!appStatus?.sessions.available && (
+            <p className="mt-1">Saved sessions are falling back to this browser because Cosmos DB is not configured.</p>
+          )}
+        </div>
+      )}
+
+      {statusError && (
+        <p className="mb-4 text-sm text-amber-700">
+          Could not load app status: {statusError}
+        </p>
+      )}
 
       <div className="mb-6 flex flex-wrap items-start gap-4">
         <div className="flex-1 min-w-[280px]">
@@ -156,11 +200,13 @@ export default function App() {
             onSessionSaved={(id) => setSessionId(id)}
             onSessionLoaded={handleSessionLoaded}
             hasSteps={hasSteps}
+            storageMode={storageMode}
+            storageReason={appStatus?.sessions.reason ?? null}
           />
         </div>
         {hasSteps && (
-          <button 
-            className="no-print inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg shadow-soft hover:shadow-soft-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105" 
+          <button
+            className="no-print inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg shadow-soft hover:shadow-soft-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105"
             onClick={handlePrint}
           >
             <Printer className="w-4 h-4" />
@@ -170,38 +216,42 @@ export default function App() {
       </div>
 
       <section className="text-center mb-8">
-        <FileUpload onUpload={handleUpload} loading={loading} />
+        <FileUpload
+          onUpload={handleUpload}
+          loading={loading}
+          extractionAvailable={extractionAvailable}
+          extractionReason={appStatus?.extraction.reason ?? null}
+        />
         {error && <p className="text-red-600 text-sm mt-3 font-medium">{error}</p>}
       </section>
 
       {hasSteps && (
         <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <StepsList
+              title="All Steps"
+              steps={allSteps}
+              keyStepIds={new Set(keySteps.map((s) => s.id))}
+              onEdit={handleEditStep}
+              onToggleKey={handleToggleKey}
+            />
+            <KeyStepsList
+              steps={keySteps}
+              onReorder={setKeySteps}
+              onEdit={handleEditStep}
+              onRemove={(id) =>
+                setKeySteps((prev) => prev.filter((s) => s.id !== id))
+              }
+            />
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StepsList
-            title="All Steps"
-            steps={allSteps}
-            keyStepIds={new Set(keySteps.map((s) => s.id))}
-            onEdit={handleEditStep}
-            onToggleKey={handleToggleKey}
+          <DiagnosticsPanel
+            rawExtraction={rawExtraction}
+            rawExtractions={rawExtractions}
+            rawLlmAll={rawLlmAll}
+            rawLlmKey={rawLlmKey}
           />
-          <KeyStepsList
-            steps={keySteps}
-            onReorder={setKeySteps}
-            onEdit={handleEditStep}
-            onRemove={(id) =>
-              setKeySteps((prev) => prev.filter((s) => s.id !== id))
-            }
-          />
-        </div>
-
-        <DiagnosticsPanel
-          rawExtraction={rawExtraction}
-          rawExtractions={rawExtractions}
-          rawLlmAll={rawLlmAll}
-          rawLlmKey={rawLlmKey}
-        />
-      </>
+        </>
       )}
     </div>
   );

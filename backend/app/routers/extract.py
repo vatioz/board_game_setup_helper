@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from app.config import get_extraction_status
 from app.models import ExtractResponse
 from app.services import document_intelligence, llm
 
@@ -24,6 +25,12 @@ def _default_label(filename: str | None) -> str:
     return os.path.splitext(filename)[0]
 
 
+def _ensure_extraction_available() -> None:
+    status = get_extraction_status()
+    if not status["available"]:
+        raise HTTPException(status_code=503, detail=str(status["reason"]))
+
+
 @router.post("/extract", response_model=ExtractResponse)
 async def extract_steps(
     files: list[UploadFile] = File(...),
@@ -32,9 +39,10 @@ async def extract_steps(
     """Accept one or more PDF uploads and return extracted + classified setup steps.
 
     ``labels`` is an optional comma-separated string of display names matching
-    each uploaded file (e.g. ``"Base Game,Expansion 1"``).  When omitted the
+    each uploaded file (e.g. ``"Base Game,Expansion 1"``). When omitted the
     filenames are used as labels.
     """
+    _ensure_extraction_available()
 
     if not files:
         raise HTTPException(status_code=400, detail="At least one PDF file is required.")

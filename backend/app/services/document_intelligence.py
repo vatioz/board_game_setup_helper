@@ -11,7 +11,7 @@ import logging
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 
-from app.config import settings
+from app.config import get_extraction_status, settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,9 @@ _client: DocumentIntelligenceClient | None = None
 def _get_client() -> DocumentIntelligenceClient:
     global _client
     if _client is None:
+        status = get_extraction_status()
+        if not status["available"]:
+            raise RuntimeError(str(status["reason"]))
         _client = DocumentIntelligenceClient(
             endpoint=settings.DOCUMENT_INTELLIGENCE_ENDPOINT,
             credential=AzureKeyCredential(settings.DOCUMENT_INTELLIGENCE_KEY),

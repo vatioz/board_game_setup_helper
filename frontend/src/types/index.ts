@@ -6,6 +6,16 @@ export interface Step {
   source?: string;  // label of the originating PDF (e.g. "Base Game")
 }
 
+export interface FeatureStatus {
+  available: boolean;
+  reason: string;
+}
+
+export interface AppStatus {
+  extraction: FeatureStatus;
+  sessions: FeatureStatus;
+}
+
 export interface ExtractResponse {
   allSteps: Step[];
   keySteps: Step[];
