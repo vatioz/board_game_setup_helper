@@ -64,6 +64,16 @@ npm run dev
 
 The Vite dev server proxies `/api` requests to `localhost:8000`.
 
+To run the frontend browser tests, install Playwright's Chromium once, then run:
+
+```bash
+cd frontend
+npx playwright install chromium
+npm test
+```
+
+Set `PLAYWRIGHT_BROWSER_CHANNEL` to a supported installed browser channel (for example, `msedge`) to use that browser instead.
+
 ### 2b. Run with Docker
 
 ```bash

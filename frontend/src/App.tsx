@@ -95,24 +95,34 @@ export default function App() {
 
   // ── Print key steps ───────────────────────────────────────────────────
   const handlePrint = useCallback(() => {
-    const html = `
-      <!DOCTYPE html>
-      <html><head>
-        <title>${sessionName || "Key Steps"} – Print</title>
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; color: #111; }
-          h1 { font-size: 1.4rem; border-bottom: 2px solid #111; padding-bottom: .3rem; }
-          ol { padding-left: 1.2rem; }
-          li { margin-bottom: .5rem; font-size: 1rem; }
-        </style>
-      </head><body>
-        <h1>${sessionName || "Key Setup Steps"}</h1>
-        <ol>${keySteps.map((s) => `<li>${s.text}</li>`).join("")}</ol>
-      </body></html>`;
     const w = window.open("", "_blank");
     if (w) {
-      w.document.write(html);
-      w.document.close();
+      const doc = w.document;
+      const title = doc.createElement("title");
+      title.textContent = `${sessionName || "Key Steps"} – Print`;
+
+      const style = doc.createElement("style");
+      style.textContent = `
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; color: #111; }
+        h1 { font-size: 1.4rem; border-bottom: 2px solid #111; padding-bottom: .3rem; }
+        ol { padding-left: 1.2rem; }
+        li { margin-bottom: .5rem; font-size: 1rem; }
+      `;
+
+      const heading = doc.createElement("h1");
+      heading.textContent = sessionName || "Key Setup Steps";
+      const list = doc.createElement("ol");
+      for (const step of keySteps) {
+        const item = doc.createElement("li");
+        item.textContent = step.text;
+        list.appendChild(item);
+      }
+
+      const head = doc.createElement("head");
+      head.append(title, style);
+      const body = doc.createElement("body");
+      body.append(heading, list);
+      doc.documentElement.replaceChildren(head, body);
       w.focus();
       w.print();
     }
