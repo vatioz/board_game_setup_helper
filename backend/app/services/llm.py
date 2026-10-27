@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
+from collections.abc import Callable
 
 from openai import AzureOpenAI
 
@@ -14,6 +16,18 @@ from app.models import Step
 logger = logging.getLogger(__name__)
 
 _client: AzureOpenAI | None = None
+
+
+class InvalidLLMResponse(ValueError):
+    """A model response failed structural or semantic validation."""
+
+
+class LLMResponseError(ValueError):
+    """An invalid model response after the single permitted retry."""
+
+    def __init__(self, reason: str, raw_response: str) -> None:
+        self.raw_response = raw_response
+        super().__init__(f"{reason}; raw response: {raw_response}")
 
 
 def _get_client() -> AzureOpenAI:
@@ -87,14 +101,54 @@ def _call_llm(system: str, user: str) -> str:
     return response.choices[0].message.content or ""
 
 
-def _parse_json_array(raw: str) -> list[dict]:
-    """Attempt to parse *raw* as a JSON array, stripping markdown fences if present."""
+def _parse_json_array(raw: str) -> list[dict[str, object]]:
+    """Parse an array of objects, accepting JSON markdown fences."""
     text = raw.strip()
-    if text.startswith("```"):
-        # Strip ```json ... ```
-        lines = text.splitlines()
-        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    return json.loads(text)
+    opening = re.match(r"^```(?:json)?[ \t]*(?:\r?\n|(?=[\[{]))", text, re.IGNORECASE)
+    if opening:
+        text = text[opening.end() :].strip()
+        if text.endswith("```"):
+            text = text[:-3].strip()
+    items = json.loads(text)
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise InvalidLLMResponse("Expected a JSON array of objects")
+    return items
+
+
+def _validated_response(
+    system: str,
+    user: str,
+    validate: Callable[[list[dict[str, object]]], list[Step]],
+) -> tuple[list[Step], str]:
+    for attempt in range(2):
+        raw = _call_llm(system, user)
+        try:
+            return validate(_parse_json_array(raw)), raw
+        except (json.JSONDecodeError, InvalidLLMResponse) as exc:
+            if attempt == 1:
+                raise LLMResponseError(str(exc), raw) from exc
+            logger.warning("LLM returned an invalid response; retrying once")
+    raise AssertionError("unreachable")
+
+
+def _extracted_steps(items: list[dict[str, object]]) -> list[Step]:
+    steps: list[Step] = []
+    seen: set[str] = set()
+    for item in items:
+        step_id = item.get("id", str(uuid.uuid4()))
+        text = item.get("text")
+        source = item.get("source", "")
+        if not isinstance(step_id, str) or not step_id:
+            raise InvalidLLMResponse("Each extracted step needs a nonempty string ID")
+        if not isinstance(text, str) or not text.strip() or not isinstance(source, str):
+            raise InvalidLLMResponse(
+                "Each extracted step needs text and a string source"
+            )
+        if step_id in seen:
+            raise InvalidLLMResponse(f"Duplicate extracted step ID: {step_id}")
+        seen.add(step_id)
+        steps.append(Step(id=step_id, text=text, source=source))
+    return steps
 
 
 def _build_combined_text(extractions: dict[str, str]) -> str:
@@ -106,6 +160,7 @@ def _build_combined_text(extractions: dict[str, str]) -> str:
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
+
 
 def extract_all_steps(raw_text: str | dict[str, str]) -> tuple[list[Step], str]:
     """Return (list_of_steps, raw_llm_response) from rulebook text.
@@ -119,42 +174,42 @@ def extract_all_steps(raw_text: str | dict[str, str]) -> tuple[list[Step], str]:
         combined = raw_text
 
     logger.info("LLM: extracting all steps (%d chars of input)", len(combined))
-    raw = _call_llm(_SYSTEM_EXTRACT, combined)
-    try:
-        items = _parse_json_array(raw)
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("LLM returned malformed JSON – retrying once")
-        raw = _call_llm(_SYSTEM_EXTRACT, combined)
-        items = _parse_json_array(raw)  # let it raise on second failure
-
-    steps = [
-        Step(
-            id=item.get("id", str(uuid.uuid4())),
-            text=item["text"],
-            source=item.get("source", ""),
-        )
-        for item in items
-    ]
+    steps, raw = _validated_response(_SYSTEM_EXTRACT, combined, _extracted_steps)
     logger.info("LLM: extracted %d steps", len(steps))
     return steps, raw
 
 
 def classify_key_steps(all_steps: list[Step]) -> tuple[list[Step], str]:
     """Return (key_steps_only, raw_llm_response)."""
+    by_id = {step.id: step for step in all_steps}
+    if len(by_id) != len(all_steps):
+        raise ValueError("All steps must have unique IDs")
+
+    def validate(items: list[dict[str, object]]) -> list[Step]:
+        selected: list[Step] = []
+        seen: set[str] = set()
+        for item in items:
+            step_id = item.get("id")
+            is_key = item.get("isKey")
+            if not isinstance(step_id, str) or step_id not in by_id:
+                raise InvalidLLMResponse(
+                    "Classification contains a missing or unknown step ID"
+                )
+            if step_id in seen:
+                raise InvalidLLMResponse(f"Duplicate classified step ID: {step_id}")
+            if not isinstance(is_key, bool):
+                raise InvalidLLMResponse(
+                    f"Classification for {step_id} needs a boolean isKey"
+                )
+            seen.add(step_id)
+            if is_key:
+                selected.append(by_id[step_id])
+        if len(seen) != len(by_id):
+            raise InvalidLLMResponse("Classification does not cover every input step")
+        return selected
+
     payload = json.dumps([s.model_dump() for s in all_steps])
     logger.info("LLM: classifying key steps (%d steps)", len(all_steps))
-    raw = _call_llm(_SYSTEM_FILTER, payload)
-    try:
-        items = _parse_json_array(raw)
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("LLM returned malformed JSON – retrying once")
-        raw = _call_llm(_SYSTEM_FILTER, payload)
-        items = _parse_json_array(raw)
-
-    key_steps = [
-        Step(id=item["id"], text=item["text"], source=item.get("source", ""))
-        for item in items
-        if item.get("isKey", False)
-    ]
+    key_steps, raw = _validated_response(_SYSTEM_FILTER, payload, validate)
     logger.info("LLM: %d / %d steps classified as key", len(key_steps), len(all_steps))
     return key_steps, raw
